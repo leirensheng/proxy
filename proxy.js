@@ -223,6 +223,16 @@ class ProxyServer {
       // }
     }
     // console.log("相应",res)
+    if (res && platform === "xingqiu") {
+      try {
+        let {
+          data: { seatPlans },
+        } = res;
+        res = seatPlans.filter((one) => Number(one.canBuyCount));
+      } catch (e) {
+        console.log(e)
+      }
+    }
     connection.write(JSON.stringify({ res, type: "proxyDone" }));
   }
 
