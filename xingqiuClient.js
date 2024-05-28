@@ -58,7 +58,17 @@ class Client extends BaseSend {
     }
     let res;
     if (this.isNeedProxy) {
-      res = await this.myProxy();
+      let arr = await this.myProxy();
+      if (!arr) {
+        return {
+          errMsg: "超时",
+          res: [],
+        };
+      }
+      return {
+        errMsg: "",
+        res: arr,
+      };
     } else {
       try {
         let p1 = fetch(this.options.url, {
@@ -81,8 +91,8 @@ class Client extends BaseSend {
       data: { seatPlans },
     } = res;
     return {
-      err: "",
-      res: seatPlans,
+      errMsg: "",
+      res: seatPlans.filter((one) => Number(one.canBuyCount)),
     };
   }
 }

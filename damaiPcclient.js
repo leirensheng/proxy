@@ -7,6 +7,7 @@ class Client extends BaseSend {
     this.valueType = "text";
     this.activityId = activityId;
     this.dataId = dataId;
+    this.isNeedProxy = true
   }
 
   async init() {

@@ -13,7 +13,7 @@ module.exports = class BaseSend {
     this.isReady = false;
     while (!this.isReady) {
       try {
-        let ip = "127.0.0.1";
+        let ip = "192.168.2.15";
         this.client = await connectCheckServer(this.eventBus, 9999, ip);
         this.isReady = true;
         this.handleConnected();
@@ -36,10 +36,10 @@ module.exports = class BaseSend {
   async handleReceiveData(data) {
     try {
       let obj = JSON.parse(data);
-      //   console.log("接受到服务器的", obj);
       let { type } = obj;
       this.eventBus.emit(type, obj);
     } catch (e) {
+      console.log("接受到服务器的", data.toString());
       console.log(e);
     }
   }
@@ -82,9 +82,13 @@ module.exports = class BaseSend {
   }
 
   removeProxyIp() {
+    if (!this.isNeedProxy) {
+      return;
+    }
     return new Promise((resolve) => {
       this.eventBus.once("removeProxyIpDone", ({ res }) => {
         resolve(res);
+        console.log("删除了当前的ip了")
       });
       this.client.write(
         JSON.stringify({
