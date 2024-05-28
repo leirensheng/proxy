@@ -64,7 +64,7 @@ class Client extends BaseSend {
         let p1 = fetch(this.options.url, {
           ...this.options,
           keepalive: true,
-        }).then((res) => res.text());
+        }).then((res) => res.json());
         let p2 = sleep(2000);
         res = await Promise.race([p1, p2]);
       } catch (e) {
@@ -77,29 +77,13 @@ class Client extends BaseSend {
         res: [],
       };
     }
-    if (
-      !res ||
-      res.includes("Forbidden") ||
-      res.includes("window") ||
-      res.includes(`"code":500`) ||
-      res.includes("upstream server") |
-        res.includes("https://bixi.alicdn.com/punish")
-    ) {
-      console.log("res", res);
-      return {
-        err: "请求频繁" + res,
-        res: [],
-      };
-    } else {
-      let {
-        data: { seatPlans },
-      } = res;
-      console.log("未知");
-      return {
-        err: "",
-        res: seatPlans,
-      };
-    }
+    let {
+      data: { seatPlans },
+    } = res;
+    return {
+      err: "",
+      res: seatPlans,
+    };
   }
 }
 
