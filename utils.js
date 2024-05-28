@@ -6,21 +6,36 @@ let eventBus = new PubSub();
 let usedIp = 0;
 
 let isGettingIp = false;
-// todo: 修改接口
-let getProxyIp = async () => {
-  try {
+
+let getValidIp = async (ips, platform) => {
+  if (isGettingIp) {
+    await waitUntilOk();
+  }
+  isGettingIp = true;
+  let getIp = async () => {
     let { data } = await axios(
-      `http://192.168.2.9:4000/getProxyIp?platform=xingqiu`,
+      `http://mticket.ddns.net:4000/getValidIp?platform=` + platform,
       {
         timeout: 60000,
       }
     );
-    return data.data;
+    let ip = data.data;
+    if (ips.has(ip)) {
+      throw new Error("重复");
+    }
+    return ip;
+  };
+
+  let realIp;
+  try {
+    let newFn = waitUntilSuccess(getIp, 590, usedIp > 80000 ? 1000 : 200);
+    realIp = await newFn();
   } catch (e) {
-    console.log("getProxyIp出错" + e.message);
-    // sendAppMsg("出错", "getProxyIp出错" + e.message);
-    throw e;
+    console.log("59次都提取失败了");
   }
+  isGettingIp = false;
+  eventBus.emit("isGettingDone");
+  return realIp;
 };
 
 let formatNumber = (val) => (val < 10 ? "0" + val : val);
@@ -102,7 +117,7 @@ let getDouyaIp = async (ips) => {
     let newFn = waitUntilSuccess(getIp, 590, usedIp > 80000 ? 1000 : 200);
     realIp = await newFn();
   } catch (e) {
-    console.log('59次都提取失败了')
+    console.log("59次都提取失败了");
   }
   isGettingIp = false;
   eventBus.emit("isGettingDone");
@@ -114,5 +129,5 @@ module.exports = {
   getTime,
   waitUntilSuccess,
   getDouyaIp,
-  getProxyIp,
+  getValidIp,
 };
