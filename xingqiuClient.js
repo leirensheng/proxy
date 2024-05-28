@@ -10,7 +10,7 @@ class Client extends BaseSend {
     this.valueType = "json";
     this.activityId = activityId;
     this.dataId = dataId;
-    this.isNeedProxy = false;
+    this.isNeedProxy = true;
   }
 
   async init() {

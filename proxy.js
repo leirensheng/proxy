@@ -1,6 +1,5 @@
-const { sleep, getDouyaIp, getTime } = require("./utils");
+const { sleep, getValidIp, getTime } = require("./utils");
 const { getSign } = require("../damai/utils");
-
 let { fetch, ProxyAgent, request } = require("undici");
 
 const net = require("net");
@@ -85,8 +84,9 @@ class ProxyServer {
     );
   }
 
-  async initAgent() {
-    let ip = await getDouyaIp(this.ips);
+  async initAgent(platform) {
+    let ip = await getValidIp(this.ips, platform);
+    console.log(ip);
     this.ips.add(ip);
     let options = {
       uri: "http://" + ip,
@@ -162,7 +162,7 @@ class ProxyServer {
       console.log("从可用的里面获取", agent.ip);
     } else {
       console.log("重新获取agent", uniqueId);
-      agent = await this.initAgent();
+      agent = await this.initAgent(platform);
       Object.keys(this.canUseMap).forEach((onePlatform) => {
         if (onePlatform !== platform) {
           this.canUseMap[onePlatform].push(agent);
