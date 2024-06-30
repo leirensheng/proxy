@@ -1,94 +1,133 @@
 let BaseSend = require("./baseSend");
 let { fetch, ProxyAgent, request } = require("undici");
-let { getSign, sleep } = require("../damai/utils");
-const randomUserAgent = require("random-useragent");
+let { cmd, sleep, sendAppMsg } = require("../damai/utils");
 
 class Client extends BaseSend {
-  constructor(activityId, dataId, index, skuIdToTypeMap, isSpecial, isWx) {
+  constructor(activityId, index, skuIdToTypeMap) {
     super();
     this.index = index;
     this.platform = "damai";
     this.valueType = "json";
     this.activityId = activityId;
     this.skuIdToTypeMap = skuIdToTypeMap;
-    this.dataId = dataId;
-    this.isSpecial = isSpecial;
     this.isNeedProxy = false;
-    this.isWx = isWx;
+    this.cityId = "";
+    this.cityName = "";
+    this.fridaPort = "2284";
   }
 
-  async getMobileCookieAndToken(isRefresh) {
-    let { cookie, token } = await new Promise((resolve) => {
-      this.eventBus.once("getMobileCookieAndTokenDone", ({ token, cookie }) =>
-        resolve({ token, cookie })
-      );
-      this.client.write(
-        JSON.stringify({
-          isRefresh,
-          activityId: this.activityId,
-          getMobileCookieAndToken: true,
-        })
+  async getHeaders(isRefresh) {
+    return new Promise((r) => {
+      let data = "";
+      cmd(
+        `python ../damai/rpcCheckIsSellout.py ${this.fridaPort} ${this.activityId}`,
+        (val) => {
+          data += val;
+          // console.log(data);
+          if (data.includes("done")) {
+            data = data.match(/\{(.*)\}/)[1];
+            let arr = data.split(", ").map((one) => one.trim());
+            // console.log(arr);
+            let noNeedEncode = [];
+            data = arr.reduce((prev, cur) => {
+              let res = cur.match(/^(.*?)=(.*?)$/);
+
+              prev[res[1]] = noNeedEncode.includes(res[1])
+                ? res[2]
+                : encodeURIComponent(res[2]);
+              return prev;
+            }, {});
+
+            let {
+              deviceId,
+              activityId,
+              skuId,
+              netType,
+              sid,
+              wua,
+              utdid,
+              umt,
+              sign,
+              t,
+              uid,
+              ttid,
+              appKey,
+              pv,
+              extdata,
+            } = data;
+            var randomNum = Math.round(Math.random() * 10000000000000);
+
+            let headers = {
+              "a-orange-q":
+                "appKey=23781390&appVersion=6000190&clientAppIndexVersion=1120240508160203260&clientVersionIndexVersion=0",
+              "cache-control": "no-cache",
+              "content-type": "application/x-www-form-urlencoded;charset=UTF-8",
+              "f-refer": "",
+              "user-agent":
+                "MTOPSDK%2F3.2.9.7+%28Android%3B12%3Bsamsung%3BSM-G988N%29",
+              "x-app-conf-v": "",
+              "x-app-ver": "",
+              "x-appkey": appKey,
+              "x-bx-version": "6.6.231201.33656539",
+              "x-c-traceid": `${utdid}${t}${randomNum}`,
+              "x-devid": deviceId,
+              "x-extdata": extdata,
+              "x-features": "",
+              "x-mini-wua": "",
+              "x-nettype": netType,
+              "x-nq": netType,
+              "x-pv": pv,
+              "x-sgext": "",
+              "x-sid": sid,
+              "x-sign": sign,
+              "x-t": t,
+              "x-ttid": ttid,
+              "x-uid": uid,
+              "x-umt": umt,
+              "x-utdid": utdid,
+            };
+
+            Object.keys(headers).forEach((one) => {
+              if (headers[one] === "") {
+                headers[one] = data[one];
+              }
+            });
+            r(headers);
+          }
+        }
       );
     });
-
-    this.cookie = cookie;
-    this.token = token;
   }
 
   async getOptions(isRefresh) {
-    await this.getMobileCookieAndToken(isRefresh);
+    let headers = await this.getHeaders(isRefresh);
+    let obj = { itemId: String(this.activityId), comboChannel: "1" };
 
-    // damai_app
-    let data = {
-      itemId: this.activityId,
-      platform: "8",
-      comboChannel: "2",
-      dmChannel: this.isWx ? "damai@weixin_gzh" : "damai@damaih5_h5",
-    };
-    let t = Date.now();
-    let sign = getSign(data, t, this.token);
     return {
-      url: `https://mtop.damai.cn/h5/mtop.damai.item.detail.getdetail/1.0/?jsv=2.7.2&appKey=12574478&t=${t}&sign=${sign}&api=mtop.damai.item.detail.getdetail&v=1.0&H5Request=true&type=json&timeout=10000&dataType=json&valueType=string&forceAntiCreep=true&AntiCreep=true&useH5=true&data=${encodeURIComponent(
-        JSON.stringify(data)
-      )}`,
-      headers: {
-        cookie: this.cookie,
-        accept: "application/json",
-        "accept-language": "zh-CN,zh;q=0.9",
-        priority: "u=1, i",
-        "sec-fetch-dest": "empty",
-        "sec-fetch-mode": "cors",
-        "sec-fetch-site": "same-site",
-        // "user-agent": this.isWx
-        //   ? "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36 NetType/WIFI MicroMessenger/7.0.20.1781(0x6700143B) WindowsWechat(0x6305002e)"
-        //   : randomUserAgent.getRandom(),
-      },
-      referrer: "https://m.damai.cn/",
-      referrerPolicy: "strict-origin-when-cross-origin",
+      url:
+        "https://acs.m.taobao.com/gw/mtop.damai.item.detail.getdetail/1.0/?data=" +
+        encodeURIComponent(JSON.stringify(obj)),
+      headers,
       body: null,
       method: "GET",
-      mode: "cors",
-      credentials: "include",
     };
   }
   async init() {
-    await new Promise((resolve) => {
-      this.eventBus.once("connectedReady", resolve);
-      this.tryConnect();
-    });
     await this.initAgent();
+    this.updateOptions();
+  }
+  updateOptions() {
+    setInterval(() => {
+      this.initAgent();
+    }, 60000 * (this.index + 1));
   }
 
   async initAgent(isRefresh) {
     let options = await this.getOptions(isRefresh);
-    let uniqueId = this.activityId + "_" + this.dataId + "_" + this.index;
+    let uniqueId = this.activityId + "_" + this.index;
     this.uniqueId = uniqueId;
-
     this.options = options;
-    if (this.isNeedProxy) {
-      this.ip = await this.getAgent();
-    }
-    console.log(this.ip);
+    console.log("更新options");
     this.isReady = true;
   }
 
@@ -97,21 +136,16 @@ class Client extends BaseSend {
       return "";
     }
     let res;
-    if (this.isNeedProxy) {
-      res = await this.myProxy();
-    } else {
-      try {
-        let p1 = fetch(this.options.url, {
-          ...this.options,
-          keepalive: true,
-        }).then((res) => res.json());
-        let p2 = sleep(2000);
-        res = await Promise.race([p1, p2]);
-      } catch (e) {
-        console.log(e);
-      }
+    try {
+      let p1 = fetch(this.options.url, {
+        ...this.options,
+        keepalive: true,
+      }).then((res) => res.json());
+      let p2 = sleep(2000);
+      res = await Promise.race([p1, p2]);
+    } catch (e) {
+      console.log(e);
     }
-    console.log(res)
 
     if (!res) {
       return {
@@ -120,151 +154,61 @@ class Client extends BaseSend {
       };
     }
 
-    let {
-      data: { legacy },
-      ret,
-    } = res;
-    if (ret && ret.length && ret.some((one) => one.match(/令牌过期/))) {
-      console.log("过期后更新");
-      await this.initAgent(true);
-      return this.send();
-    } else if (
-      ret &&
-      ret.length &&
-      ret.some((one) =>
-        one.match(/(挤爆)|(令牌过期)|(小二很忙)|(网络系统异常)|(令牌为空)/)
-      )
-    ) {
-      console.log(ret);
-      return {
-        res: [],
-        errMsg: "挤爆或过期或网络系统异常",
-      };
-    } else if (ret.length && !ret[0].includes("成功")) {
-      return {
-        resFromPage: [],
-        errFromPage: "12未知错误" + JSON.stringify(ret),
-      };
-    } else {
+    let { data, ret } = res;
+
+    if (ret && ret[0].includes("成功")) {
       let {
         detailViewComponentMap: {
           item: {
-            item: { buyBtnText, performBases, isSoldOutAndNoUnpaid },
+            item: { buyBtnText },
           },
         },
-      } = JSON.parse(legacy);
+      } = JSON.parse(data.legacy);
+      console.log(buyBtnText);
 
-      let isSellout;
-      if (typeof isSoldOutAndNoUnpaid !== "undefined") {
-        isSellout = isSoldOutAndNoUnpaid;
-      } else {
-        isSellout = !buyBtnText.includes("立即");
-      }
+      let isSellout = !buyBtnText.includes("立即");
+      let arr = Object.keys(this.skuIdToTypeMap).map((id) => ({
+        type: this.skuIdToTypeMap[id],
+        skuStatus: "1",
+        skuId: id,
+        quantitySellAble: isSellout ? 0 : 9,
+      }));
 
-      let arr;
-      if (this.isSpecial) {
-        arr = Object.keys(this.skuIdToTypeMap).map((id) => ({
-          type: this.skuIdToTypeMap[id],
-          skuStatus: "1",
-          skuId: id,
-          quantitySellAble: isSellout ? 0 : 9,
-        }));
-      } else {
-        arr = performBases
-          .map((one) => {
-            // todo: 多日期不是perform[0]
-            if (one.performs[0].skuList) {
-              return one.performs[0].skuList;
-            } else {
-              // console.log("心方式", skuIdToTypeMap);
-              let arr = Object.keys(this.skuIdToTypeMap).map((id) => {
-                let type = this.skuIdToTypeMap[id];
-                let [perform, price] = type.split("_");
-                return {
-                  type,
-                  id,
-                  perform,
-                  price,
-                };
-              });
-
-              arr = arr.filter(
-                (item) => item.perform === one.performs[0].performName
-              );
-
-              return arr.map((item) => ({
-                ...item,
-                skuStatus: "1",
-                skuId: item.id,
-                skuName: item.price,
-                quantitySellAble: isSellout ? 0 : 9,
-              }));
-            }
-          })
-          .flat()
-          .filter(Boolean);
-
-        if (!arr.length) {
-          // await this.initAgent(true);
-          return {
-            res: [],
-            errMsg: "没有skuList",
-          };
-        }
-        arr.forEach((one) => {
-          if (one.skuStatus !== "1") {
-            one.quantitySellAble = 0;
-          }
-        });
-
-        // console.log(1111,arr)
-      }
       return {
         res: arr,
         errMsg: "",
       };
+    } else {
+      console.log(ret);
+      sendAppMsg("err", "模拟器发送请求出错" + ret[0], {
+        type: "error",
+      });
+
+      await sleep(3000);
+      throw new Error("出错");
     }
-
-    // else if (res.includes("skuList")) {
-    //   res = res.slice(1, -1);
-
-    //   let {
-    //     perform: { skuList },
-    //   } = JSON.parse(res);
-    //   skuList.forEach((one) => {
-    //     one.quantitySellAble = Number(one.salableQuantity);
-    //   });
-
-    //   return {
-    //     errMsg: "",
-    //     res: skuList,
-    //   };
-    // } else {
-    //   console.log("未知错误", res);
-    //   return {
-    //     errMsg: "未知错误" + res,
-    //     res: [],
-    //   };
-    // }
   }
 }
 
 let init = async () => {
-  let obj = new Client(796624646386,'',0,{},false,false);
-  console.log("in前");
+  let obj = new Client(778334220184, 0, {
+    5344030092942: "2024-06-08 周六 19:00_380元（看台）",
+    5344030092943: "2024-06-08 周六 19:00_580元（看台）",
+    5344030092944: "2024-06-08 周六 19:00_780元（看台）",
+    5344030092945: "2024-06-08 周六 19:00_980元（内场）",
+    5344030092946: "2024-06-09 周日 19:00_380元（看台）",
+    5344030092947: "2024-06-09 周日 19:00_580元（看台）",
+    5344030092948: "2024-06-09 周日 19:00_780元（看台）",
+    5344030092949: "2024-06-09 周日 19:00_980元（内场）",
+  });
 
   await obj.init();
-  console.log("准备send");
 
-  let res = await obj.send();
-  console.log("完成");
-
-  console.log(res);
+  for (let i = 0; i <= 10000; i++) {
+    let res = await obj.send();
+    console.log(res);
+  }
 };
 
-init();
-// obj.getOptions();
-// obj.test();
-// module.exports = Client;
-
-
+// init();
+module.exports = Client;

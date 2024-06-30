@@ -41,34 +41,24 @@ class ProxyServer {
     };
     let sign = getSign(data, t);
     console.log("sign");
-    let res = await fetch(
-      `https://mtop.damai.cn/h5/mtop.alibaba.damai.detail.getdetail/1.2/?jsv=2.7.2&appKey=12574478&t=${t}&sign=${sign}&api=mtop.alibaba.damai.detail.getdetail&v=1.2&H5Request=true&type=originaljson&timeout=10000&dataType=json&valueType=original&forceAntiCreep=true&AntiCreep=true&useH5=true&data=${encodeURIComponent(
-        JSON.stringify(data)
-      )}`,
-      {
-        headers: {
-          accept: "application/json",
-          "accept-language": "zh-CN,zh;q=0.9",
-          "cache-control": "no-cache",
-          "content-type": "application/x-www-form-urlencoded",
-          pragma: "no-cache",
-          "sec-ch-ua":
-            '"Chromium";v="118", "Microsoft Edge";v="118", "Not=A?Brand";v="99"',
-          "sec-ch-ua-mobile": "?0",
-          "sec-ch-ua-platform": '"Windows"',
-          "sec-fetch-dest": "empty",
-          "sec-fetch-mode": "cors",
-          "sec-fetch-site": "same-site",
-          cookie:
-            "isg=BOXl0gwk7Kfswwh70IXWABsn9KEfIpm0GrZ-CefKxpwr_gVwr3CGhG_fiGKIfrFs",
-
-          Referer: "https://m.damai.cn/",
-          "Referrer-Policy": "strict-origin-when-cross-origin",
-        },
-        body: null,
-        method: "GET",
-      }
-    );
+    let res = await fetch("https://mtop.damai.cn/h5/mtop.damai.item.detail.getdetail/1.0/?jsv=2.7.2&appKey=12574478&t=1716901473337&sign=7856595790c789faee67db5a21075008&api=mtop.damai.item.detail.getdetail&v=1.0&H5Request=true&type=json&timeout=10000&dataType=json&valueType=string&forceAntiCreep=true&AntiCreep=true&useH5=true&data=%7B%22itemId%22%3A%22789240991916%22%2C%22platform%22%3A%228%22%2C%22comboChannel%22%3A%222%22%2C%22dmChannel%22%3A%22damai%40damaih5_h5%22%7D", {
+      "headers": {
+        "accept": "application/json",
+        "accept-language": "zh-CN,zh;q=0.9",
+        "content-type": "application/x-www-form-urlencoded",
+        "priority": "u=1, i",
+        "sec-ch-ua": "\"\"",
+        "sec-ch-ua-mobile": "?1",
+        "sec-ch-ua-platform": "\"\"",
+        "sec-fetch-dest": "empty",
+        "sec-fetch-mode": "cors",
+        "sec-fetch-site": "same-site",
+        "Referer": "https://m.damai.cn/",
+        "Referrer-Policy": "strict-origin-when-cross-origin"
+      },
+      "body": null,
+      "method": "GET"
+    });
 
     let cookie = res.headers.get("Set-Cookie");
     console.log(111, cookie);

@@ -1,9 +1,10 @@
 let BaseSend = require("./baseSend");
 let { fetch, ProxyAgent, request } = require("undici");
 let { getSign, sleep } = require("../damai/utils");
+// const randomUserAgent = require("random-useragent");
 
 class Client extends BaseSend {
-  constructor(activityId, dataId, index, skuIdToTypeMap, isSpecial) {
+  constructor(activityId, dataId, index, skuIdToTypeMap, port, isWx) {
     super();
     this.index = index;
     this.platform = "damai";
@@ -11,8 +12,10 @@ class Client extends BaseSend {
     this.activityId = activityId;
     this.skuIdToTypeMap = skuIdToTypeMap;
     this.dataId = dataId;
-    this.isSpecial = isSpecial;
     this.isNeedProxy = false;
+    this.isWx = isWx;
+    this.isXuni = [4822].includes(Number(port));
+    this.times = 0;
   }
 
   async getMobileCookieAndToken(isRefresh) {
@@ -35,12 +38,13 @@ class Client extends BaseSend {
 
   async getOptions(isRefresh) {
     await this.getMobileCookieAndToken(isRefresh);
-
+    console.log("cookie更新完成");
+    // damai_app
     let data = {
       itemId: this.activityId,
       platform: "8",
       comboChannel: "2",
-      dmChannel: "damai@damaih5_h5",
+      dmChannel: this.isWx ? "damai@weixin_gzh" : "damai@damaih5_h5",
     };
     let t = Date.now();
     let sign = getSign(data, t, this.token);
@@ -56,6 +60,9 @@ class Client extends BaseSend {
         "sec-fetch-dest": "empty",
         "sec-fetch-mode": "cors",
         "sec-fetch-site": "same-site",
+        // "user-agent": this.isWx
+        //   ? "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36 NetType/WIFI MicroMessenger/7.0.20.1781(0x6700143B) WindowsWechat(0x6305002e)"
+        //   : randomUserAgent.getRandom(),
       },
       referrer: "https://m.damai.cn/",
       referrerPolicy: "strict-origin-when-cross-origin",
@@ -71,22 +78,30 @@ class Client extends BaseSend {
       this.tryConnect();
     });
     await this.initAgent();
+    this.updateOptions();
+  }
+  updateOptions() {
+    setInterval(() => {
+      this.initAgent(true);
+    }, 60000 * (this.index + 1));
   }
 
   async initAgent(isRefresh) {
     let options = await this.getOptions(isRefresh);
+    console.log("更新options完成");
     let uniqueId = this.activityId + "_" + this.dataId + "_" + this.index;
     this.uniqueId = uniqueId;
 
     this.options = options;
     if (this.isNeedProxy) {
       this.ip = await this.getAgent();
+      console.log("ip更新完成");
     }
-    console.log(this.ip);
     this.isReady = true;
   }
 
   async send() {
+    this.times++;
     if (!this.isReady) {
       return "";
     }
@@ -119,6 +134,7 @@ class Client extends BaseSend {
     } = res;
     if (ret && ret.length && ret.some((one) => one.match(/令牌过期/))) {
       console.log("过期后更新");
+      this.isReady = false;
       await this.initAgent(true);
       return this.send();
     } else if (
@@ -142,70 +158,28 @@ class Client extends BaseSend {
       let {
         detailViewComponentMap: {
           item: {
-            item: { buyBtnText, performBases },
+            item: { buyBtnText, performBases, isSoldOutAndNoUnpaid },
           },
         },
       } = JSON.parse(legacy);
 
-      let isSellout = !buyBtnText.includes("立即");
+      let isSellout;
+      if (typeof isSoldOutAndNoUnpaid !== "undefined") {
+        isSellout = isSoldOutAndNoUnpaid;
+      } else {
+        isSellout = !buyBtnText.includes("立即");
+      }
 
       let arr;
-      if (this.isSpecial) {
-        arr = Object.keys(this.skuIdToTypeMap).map((id) => ({
-          type: this.skuIdToTypeMap[id],
-          skuStatus: "1",
-          skuId: id,
-          quantitySellAble: isSellout ? 0 : 9,
-        }));
-      } else {
-        arr = performBases
-          .map((one) => {
-            // todo: 多日期不是perform[0]
-            if (one.performs[0].skuList) {
-              return one.performs[0].skuList;
-            } else {
-              // console.log("心方式", skuIdToTypeMap);
-              let arr = Object.keys(this.skuIdToTypeMap).map((id) => {
-                let type = this.skuIdToTypeMap[id];
-                let [perform, price] = type.split("_");
-                return {
-                  type,
-                  id,
-                  perform,
-                  price,
-                };
-              });
 
-              arr = arr.filter(
-                (item) => item.perform === one.performs[0].performName
-              );
+      arr = Object.keys(this.skuIdToTypeMap).map((id) => ({
+        type: this.skuIdToTypeMap[id],
+        skuStatus: "1",
+        skuId: id,
+        quantitySellAble: this.isXuni ? 9 : isSellout ? 0 : 9,
+        // quantitySellAble: 9,
+      }));
 
-              return arr.map((item) => ({
-                ...item,
-                skuStatus: "1",
-                skuId: item.id,
-                skuName: item.price,
-                quantitySellAble: isSellout ? 0 : 9,
-              }));
-            }
-          })
-          .flat()
-          .filter(Boolean);
-
-        if (!arr.length) {
-          return {
-            res: [],
-            errMsg: "没有skuList",
-          };
-        }
-        arr.forEach((one) => {
-          if (one.skuStatus !== "1") {
-            one.quantitySellAble = 0;
-          }
-        });
-
-        // console.log(1111,arr)
-      }
       return {
         res: arr,
         errMsg: "",
