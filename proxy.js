@@ -11,6 +11,7 @@ class ProxyServer {
     this.ips = new Set();
     this.canUseMap = {
       damai: [], //可用
+      bili: [], //可用
       xingqiu: [], //
       maoyan: [], //
     };
@@ -32,36 +33,39 @@ class ProxyServer {
       );
       return;
     }
-    let t = Date.now();
-    let data = {
-      itemId: activityId,
-      platform: "8",
-      comboChannel: "2",
-      dmChannel: "damai@damaih5_h5",
-    };
-    let sign = getSign(data, t);
-    console.log("sign");
-    let res = await fetch("https://mtop.damai.cn/h5/mtop.damai.item.detail.getdetail/1.0/?jsv=2.7.2&appKey=12574478&t=1716901473337&sign=7856595790c789faee67db5a21075008&api=mtop.damai.item.detail.getdetail&v=1.0&H5Request=true&type=json&timeout=10000&dataType=json&valueType=string&forceAntiCreep=true&AntiCreep=true&useH5=true&data=%7B%22itemId%22%3A%22789240991916%22%2C%22platform%22%3A%228%22%2C%22comboChannel%22%3A%222%22%2C%22dmChannel%22%3A%22damai%40damaih5_h5%22%7D", {
-      "headers": {
-        "accept": "application/json",
-        "accept-language": "zh-CN,zh;q=0.9",
-        "content-type": "application/x-www-form-urlencoded",
-        "priority": "u=1, i",
-        "sec-ch-ua": "\"\"",
-        "sec-ch-ua-mobile": "?1",
-        "sec-ch-ua-platform": "\"\"",
-        "sec-fetch-dest": "empty",
-        "sec-fetch-mode": "cors",
-        "sec-fetch-site": "same-site",
-        "Referer": "https://m.damai.cn/",
-        "Referrer-Policy": "strict-origin-when-cross-origin"
-      },
-      "body": null,
-      "method": "GET"
-    });
+    // let t = Date.now();
+    // let data = {
+    //   itemId: activityId,
+    //   platform: "8",
+    //   comboChannel: "2",
+    //   dmChannel: "damai@damaih5_h5",
+    // };
+    // let sign = getSign(data, t);
+    // console.log("sign");
+    let res = await fetch(
+      "https://mtop.damai.cn/h5/mtop.damai.item.detail.getdetail/1.0/?jsv=2.7.2&appKey=12574478&t=1716901473337&sign=7856595790c789faee67db5a21075008&api=mtop.damai.item.detail.getdetail&v=1.0&H5Request=true&type=json&timeout=10000&dataType=json&valueType=string&forceAntiCreep=true&AntiCreep=true&useH5=true&data=%7B%22itemId%22%3A%22789240991916%22%2C%22platform%22%3A%228%22%2C%22comboChannel%22%3A%222%22%2C%22dmChannel%22%3A%22damai%40damaih5_h5%22%7D",
+      {
+        headers: {
+          accept: "application/json",
+          "accept-language": "zh-CN,zh;q=0.9",
+          "content-type": "application/x-www-form-urlencoded",
+          priority: "u=1, i",
+          "sec-ch-ua": '""',
+          "sec-ch-ua-mobile": "?1",
+          "sec-ch-ua-platform": '""',
+          "sec-fetch-dest": "empty",
+          "sec-fetch-mode": "cors",
+          "sec-fetch-site": "same-site",
+          Referer: "https://m.damai.cn/",
+          "Referrer-Policy": "strict-origin-when-cross-origin",
+        },
+        body: null,
+        method: "GET",
+      }
+    );
 
     let cookie = res.headers.get("Set-Cookie");
-    console.log(111, cookie);
+    // console.log(111, cookie);
     let v1 = cookie.match(/_m_h5_tk_enc=(.*?);/)[1];
     let v2 = cookie.match(/_m_h5_tk=(.*?);/)[1];
     cookie = `_m_h5_tk_enc=${v1};_m_h5_tk=${v2}`;
@@ -145,7 +149,7 @@ class ProxyServer {
     connection.valueType = valueType;
     connection.options = options;
 
-    let agent;
+    let agent; // agent是一个对象, 包含ip和ids
 
     if (this.canUseMap[platform].length) {
       agent = this.canUseMap[platform].pop();
@@ -205,7 +209,10 @@ class ProxyServer {
         throw new Error("timeout");
       }
     } catch (e) {
-      console.log("出错信息", e);
+      if (!e.message.includes("fetch failed")) {
+        console.log("出错信息", e);
+      }
+      console.log("超时了");
       // if (!e.message.includes("timeout")) {
       // this.removeProxyIp({ uniqueId });
       // }
@@ -220,7 +227,7 @@ class ProxyServer {
         } = res;
         res = seatPlans.filter((one) => Number(one.canBuyCount));
       } catch (e) {
-        console.log(e)
+        console.log(e);
       }
     }
     connection.write(JSON.stringify({ res, type: "proxyDone" }));
@@ -258,7 +265,7 @@ class ProxyServer {
     connection.write(JSON.stringify({ type: "endDone" }));
   }
 
-  // 彻底失效; todo: 测试一个平台失效,别的不失效
+  // 每个平台单独删除ip,互不影响
   removeProxyIp(receiveData, connection) {
     let { uniqueId } = receiveData;
     let agent = this.idToAgent[uniqueId];
@@ -272,14 +279,13 @@ class ProxyServer {
         }
       });
 
-      this.ips.delete(agent.ip);
-      console.log("删除一个IP后: " + agent.ip, this.ips.size);
-
-      [...agent.ids].forEach((id) => {
-        this.idToAgent[id] = null;
-      });
-      agent.ids = null;
-      agent.close();
+      agent.ids.delete(uniqueId);
+      delete this.idToAgent[uniqueId];
+      if (!agent.ids.size) {
+        this.ips.delete(agent.ip);
+        agent.ids = null;
+        agent.close();
+      }
     }
     connection &&
       connection.write(JSON.stringify({ type: "removeProxyIpDone" }));
