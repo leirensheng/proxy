@@ -112,15 +112,15 @@ class Client extends BaseSend {
       };
     }
 
-    let { data, comment } = res;
+    let { data, comments } = res;
 
-    if (comment && comment.includes("invalid")) {
+    if (comments && comments.includes("invalid")) {
       // 应该不会出现,因为server会自动的更新
       console.log("过期后更新===============>", getTime());
       this.isReady = false;
       await this.initAgent(true);
       return this.send(params);
-    } else if (comment && comment.includes("成功")) {
+    } else if (comments && comments.includes("成功")) {
       let arr = data
         .map((one) => ({
           zoneConcreteId: one.zoneConcreteId,

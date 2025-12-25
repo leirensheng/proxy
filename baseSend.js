@@ -13,7 +13,7 @@ module.exports = class BaseSend {
     this.isReady = false;
     while (!this.isReady) {
       try {
-        let ip = "192.168.2.15";
+        let ip = "192.168.2.75";
         this.client = await connectCheckServer(this.eventBus, 9999, ip);
         this.isReady = true;
         this.handleConnected();
@@ -55,6 +55,7 @@ module.exports = class BaseSend {
   async close() {
     return new Promise((resolve) => {
       this.eventBus.once("endDone", resolve);
+      // console.log("close")
       this.client.end();
     });
   }
@@ -66,7 +67,7 @@ module.exports = class BaseSend {
   //     });
   //   });
   // }
-  myProxy() {
+  myProxy(params) {
     return new Promise((resolve) => {
       this.eventBus.once("proxyDone", ({ res }) => {
         resolve(res);
@@ -74,6 +75,7 @@ module.exports = class BaseSend {
       this.client.write(
         JSON.stringify({
           proxyData: true,
+          params,
           platform: this.platform,
           uniqueId: this.uniqueId,
         })
@@ -81,14 +83,14 @@ module.exports = class BaseSend {
     });
   }
 
-  removeProxyIp() {
+ async removeProxyIp() {
     if (!this.isNeedProxy) {
+      this.close()
       return;
     }
-    return new Promise((resolve) => {
+    await new Promise((resolve) => {
       this.eventBus.once("removeProxyIpDone", ({ res }) => {
         resolve(res);
-        console.log("删除了当前的ip了")
       });
       this.client.write(
         JSON.stringify({
@@ -98,6 +100,8 @@ module.exports = class BaseSend {
         })
       );
     });
+    // await sleep(1000)
+    // await this.close()
   }
 
   getAgent() {
