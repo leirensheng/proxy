@@ -57,32 +57,32 @@ module.exports = {
 
 //
 //
-this.client.write(
-  JSON.stringify({
-    getAgent: true,
-    platform: 'damai',
-    uniqueId: "4343",
-    options: JSON.stringify({
-      a:12
-    })
-  })
-);
+// this.client.write(
+//   JSON.stringify({
+//     getAgent: true,
+//     platform: 'damai',
+//     uniqueId: "4343",
+//     options: JSON.stringify({
+//       a:12
+//     })
+//   })
+// );
 
-this.client.write(
-  JSON.stringify({
-    refreshOption: true,
-    platform: 'damai',
-    uniqueId: "4343",
-    options: JSON.stringify({
-      a:12
-    })
-  })
-);
+// this.client.write(
+//   JSON.stringify({
+//     refreshOption: true,
+//     platform: 'damai',
+//     uniqueId: "4343",
+//     options: JSON.stringify({
+//       a:12
+//     })
+//   })
+// );
 
-this.client.write(
-  JSON.stringify({
-    proxyData: true,
-    platform: 'damai',
-    uniqueId: "4343",
-  })
-);
+// this.client.write(
+//   JSON.stringify({
+//     proxyData: true,
+//     platform: 'damai',
+//     uniqueId: "4343",
+//   })
+// );

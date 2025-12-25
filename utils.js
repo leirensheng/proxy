@@ -93,7 +93,7 @@ let getDouyaIp = async (ips) => {
   isGettingIp = true;
   let getIp = async () => {
     let { data } = await axios(
-      `https://api.douyadaili.com/proxy/?service=GetUnl&authkey=wLBiTQSHE5opEXokzDwZ&num=${1}&format=json&distinct=${isDistinct}&detail=1&portlen=4`
+      `https://api.douyadaili.com/proxy/?service=GetUnl&authkey=P61D1Myddt0vsMgYhVgN&num=${1}&format=json&distinct=${isDistinct}&detail=1&portlen=4`
     );
     if (data.msg.match(/今日最大|资源不足/)) {
       isDistinct = 0;

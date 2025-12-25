@@ -1,11 +1,11 @@
 const { sleep, getValidIp, getTime } = require("./utils");
-const { getSign } = require("../damai/utils");
-let { fetch, ProxyAgent, request } = require("undici");
-
+let { fetch, ProxyAgent } = require("undici");
+let { getSign } = require("../damai/utils");
 const net = require("net");
 let connectionMap = {};
 let damaiMobileCookieAndToken = {};
-
+let jiuShiToken = "";
+let getAppToken = require("../F1/app/appGetToken");
 class ProxyServer {
   constructor() {
     this.ips = new Set();
@@ -18,13 +18,8 @@ class ProxyServer {
     this.idToAgent = {};
     this.createIpcServer(9999);
   }
-
   async getMobileCookieAndToken({ activityId, isRefresh }, connection) {
     if (damaiMobileCookieAndToken[activityId] && !isRefresh) {
-      console.log("直接返回", {
-        ...damaiMobileCookieAndToken[activityId],
-        type: "getMobileCookieAndTokenDone",
-      });
       connection.write(
         JSON.stringify({
           ...damaiMobileCookieAndToken[activityId],
@@ -33,44 +28,62 @@ class ProxyServer {
       );
       return;
     }
-    // let t = Date.now();
-    // let data = {
-    //   itemId: activityId,
-    //   platform: "8",
-    //   comboChannel: "2",
-    //   dmChannel: "damai@damaih5_h5",
-    // };
-    // let sign = getSign(data, t);
-    // console.log("sign");
-    let res = await fetch(
-      "https://mtop.damai.cn/h5/mtop.damai.item.detail.getdetail/1.0/?jsv=2.7.2&appKey=12574478&t=1716901473337&sign=7856595790c789faee67db5a21075008&api=mtop.damai.item.detail.getdetail&v=1.0&H5Request=true&type=json&timeout=10000&dataType=json&valueType=string&forceAntiCreep=true&AntiCreep=true&useH5=true&data=%7B%22itemId%22%3A%22789240991916%22%2C%22platform%22%3A%228%22%2C%22comboChannel%22%3A%222%22%2C%22dmChannel%22%3A%22damai%40damaih5_h5%22%7D",
-      {
-        headers: {
-          accept: "application/json",
-          "accept-language": "zh-CN,zh;q=0.9",
-          "content-type": "application/x-www-form-urlencoded",
-          priority: "u=1, i",
-          "sec-ch-ua": '""',
-          "sec-ch-ua-mobile": "?1",
-          "sec-ch-ua-platform": '""',
-          "sec-fetch-dest": "empty",
-          "sec-fetch-mode": "cors",
-          "sec-fetch-site": "same-site",
-          Referer: "https://m.damai.cn/",
-          "Referrer-Policy": "strict-origin-when-cross-origin",
-        },
-        body: null,
-        method: "GET",
-      }
-    );
 
-    let cookie = res.headers.get("Set-Cookie");
-    // console.log(111, cookie);
-    let v1 = cookie.match(/_m_h5_tk_enc=(.*?);/)[1];
-    let v2 = cookie.match(/_m_h5_tk=(.*?);/)[1];
-    cookie = `_m_h5_tk_enc=${v1};_m_h5_tk=${v2}`;
+    let isWx = true;
+    let fn = async () => {
+      let t = Date.now();
+      let data = {
+        itemId: activityId,
+        platform: "8",
+        comboChannel: "2",
+        dmChannel: "damai@damaih5_h5",
+      };
+      let sign = getSign(data, t);
 
-    let token = v2.split("_")[0];
+      let res = await fetch(
+        `https://mtop.damai.cn/h5/mtop.alibaba.damai.detail.getdetail/1.0/?jsv=2.7.5&appKey=12574478&t=${t}&sign=${sign}&api=mtop.alibaba.damai.detail.getdetail&v=1.2&H5Request=true&type=originaljson&timeout=10000&dataType=json&valueType=original&forceAntiCreep=true&AntiCreep=true&useH5=true&data=${encodeURIComponent(
+          JSON.stringify(data)
+        )}`,
+        {
+          headers: {
+            accept: "application/json",
+            "accept-language": "zh-CN,zh;q=0.9",
+            "cache-control": "no-cache",
+            "content-type": "application/x-www-form-urlencoded",
+            pragma: "no-cache",
+            "sec-ch-ua":
+              '"Chromium";v="118", "Microsoft Edge";v="118", "Not=A?Brand";v="99"',
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": '"Windows"',
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "same-site",
+            "User-Agent": isWx
+              ? `Mozilla/6.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.${Math.random()}.138 Safari/${Math.random()}.36 NetType/WIFI MicroMessenger/7.0.20.${Math.random()}(0x6700143B) WindowsWechat(0x6305002e)`
+              : `Mozilla/6.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gbckko${Math.random()}) Chrome/118.0.0.0 Safari/537.36 Edg/118.0.2088.76`,
+            Referer: "https://m.damai.cn/",
+            "Referrer-Policy": "strict-origin-when-cross-origin",
+          },
+          body: null,
+          method: "GET",
+        }
+      );
+
+      let cookie = res.headers.get("Set-Cookie");
+      console.log(1111111111, cookie);
+      let v1 = cookie.match(/_m_h5_tk_enc=([^;]{2,}?);/)[1];
+      let v2 = cookie.match(/_m_h5_tk=([^;]{2,}?);/)[1];
+      cookie = `_m_h5_tk_enc=${v1};_m_h5_tk=${v2};`;
+
+      let token = v2.split("_")[0];
+
+      cookie = cookie;
+      return {
+        cookie,
+        token,
+      };
+    };
+    let { cookie, token } = await fn();
     damaiMobileCookieAndToken[activityId] = { cookie, token };
 
     connection.write(
@@ -78,9 +91,25 @@ class ProxyServer {
     );
   }
 
+  async updateJiuShiToken() {
+    jiuShiToken = await getAppToken();
+    setTimeout(() => {
+      this.updateJiuShiToken();
+    }, 28 * 60000);
+  }
+
+  async getJiushiToken({}, connection) {
+    if (!jiuShiToken) {
+      await this.updateJiuShiToken();
+    }
+    connection.write(
+      JSON.stringify({ jiuShiToken, type: "getJiushiTokenDone" })
+    );
+  }
+
   async initAgent(platform) {
     let ip = await getValidIp(this.ips, platform);
-    console.log(ip);
+    // console.log(ip);
     this.ips.add(ip);
     let options = {
       uri: "http://" + ip,
@@ -88,7 +117,7 @@ class ProxyServer {
     };
     let agent = new ProxyAgent(options);
     agent.ip = ip;
-    console.log("再用的ip有", this.ips.size);
+    // console.log("再用的ip有", this.ips.size);
     return agent;
   }
 
@@ -109,6 +138,8 @@ class ProxyServer {
         await this.removeProxyIp(receiveData, connection);
       } else if (receiveData.getMobileCookieAndToken) {
         await this.getMobileCookieAndToken(receiveData, connection);
+      } else if (receiveData.getJiushiToken) {
+        await this.getJiushiToken(receiveData, connection);
       }
     } catch (e) {
       console.log(e);
@@ -153,9 +184,9 @@ class ProxyServer {
 
     if (this.canUseMap[platform].length) {
       agent = this.canUseMap[platform].pop();
-      console.log("从可用的里面获取", agent.ip);
+      // console.log("从可用的里面获取", agent.ip);
     } else {
-      console.log("重新获取agent", uniqueId);
+      // console.log("重新获取agent", uniqueId);
       agent = await this.initAgent(platform);
       Object.keys(this.canUseMap).forEach((onePlatform) => {
         if (onePlatform !== platform) {
@@ -178,7 +209,7 @@ class ProxyServer {
   }
 
   async handleProxy(receiveData, connection) {
-    let { uniqueId, platform } = receiveData;
+    let { uniqueId, platform, params } = receiveData;
     let options = connection.options;
 
     let agent = this.idToAgent[uniqueId];
@@ -187,11 +218,18 @@ class ProxyServer {
     if (!agent) {
       console.log(uniqueId + "竟然找不到agent", getTime());
     }
+
+    if (params) {
+      let obj = JSON.parse(options.body);
+      obj = { ...obj, ...params };
+      options.body = JSON.stringify(obj);
+    }
     // if (!agent) {
     //   agent = await this.getAgent({ options, uniqueId, platform }, connection);
     // }
     let res;
     try {
+      // console.log("fetch",agent.ip,uniqueId)
       let p1 = fetch(options.url, {
         ...options,
         keepalive: true,
@@ -203,16 +241,16 @@ class ProxyServer {
           return res.json();
         }
       });
-      let p2 = sleep(2000);
+      let p2 = sleep(1000);
       res = await Promise.race([p1, p2]);
       if (!res) {
         throw new Error("timeout");
       }
     } catch (e) {
-      if (!e.message.includes("fetch failed")) {
+      if (!e.message.match(/fetch\sfailed|timeout/)) {
         console.log("出错信息", e);
       }
-      console.log("超时了");
+      // console.log("超时了");
       // if (!e.message.includes("timeout")) {
       // this.removeProxyIp({ uniqueId });
       // }
@@ -302,7 +340,7 @@ class ProxyServer {
         let target = connectionMap[ip];
         target.push(connection);
 
-        console.log("客户端连接成功");
+        console.log("客户端连接本服务成功");
         connection.on("data", (data) => {
           // console.log(
           //   `收到客户端消息【${ip.replace("::ffff:", "")}】`,
