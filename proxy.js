@@ -271,7 +271,7 @@ class ProxyServer {
         console.log(e);
       }
     }
-    console.log("发送给客户端", res);
+    // console.log("发送给客户端", res);
     connection.write(JSON.stringify({ res, type: "proxyDone" }) + "\n");
   }
 
