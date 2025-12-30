@@ -24,7 +24,7 @@ class ProxyServer {
         JSON.stringify({
           ...damaiMobileCookieAndToken[activityId],
           type: "getMobileCookieAndTokenDone",
-        })
+        }) + "\n"
       );
       return;
     }
@@ -87,7 +87,8 @@ class ProxyServer {
     damaiMobileCookieAndToken[activityId] = { cookie, token };
 
     connection.write(
-      JSON.stringify({ token, cookie, type: "getMobileCookieAndTokenDone" })
+      JSON.stringify({ token, cookie, type: "getMobileCookieAndTokenDone" }) +
+        "\n"
     );
   }
 
@@ -103,7 +104,7 @@ class ProxyServer {
       await this.updateJiuShiToken();
     }
     connection.write(
-      JSON.stringify({ jiuShiToken, type: "getJiushiTokenDone" })
+      JSON.stringify({ jiuShiToken, type: "getJiushiTokenDone" }) + "\n"
     );
   }
 
@@ -164,13 +165,13 @@ class ProxyServer {
       console.log(`恢复使用${agent.ip}`);
       this.canUseMap[platform].unshift(agent);
     }, 30 * 1000);
-    connection.write(JSON.stringify({ type: "pauseProxyDone" }));
+    connection.write(JSON.stringify({ type: "pauseProxyDone" }) + "\n");
   }
 
   async refreshOption(receiveData, connection) {
     let { options, uniqueId, platform } = receiveData;
     connection.options = options;
-    connection.write({ type: "refreshOptionDone" });
+    connection.write(JSON.stringify({ type: "refreshOptionDone" }) + "\n");
   }
 
   async getAgent(receiveData, connection) {
@@ -204,7 +205,9 @@ class ProxyServer {
     connection.ip = agent.ip;
 
     connection &&
-      connection.write(JSON.stringify({ type: "getAgentDone", ip: agent.ip }));
+      connection.write(
+        JSON.stringify({ type: "getAgentDone", ip: agent.ip }) + "\n"
+      );
     return agent;
   }
 
@@ -268,7 +271,8 @@ class ProxyServer {
         console.log(e);
       }
     }
-    connection.write(JSON.stringify({ res, type: "proxyDone" }));
+    console.log("发送给客户端", res);
+    connection.write(JSON.stringify({ res, type: "proxyDone" }) + "\n");
   }
 
   //只是去掉agent,没有清理options 没有用
@@ -300,7 +304,7 @@ class ProxyServer {
     delete connection.id;
     delete connection.platform;
     connection.destroy();
-    connection.write(JSON.stringify({ type: "endDone" }));
+    connection.write(JSON.stringify({ type: "endDone" } + "\n"));
   }
 
   // 每个平台单独删除ip,互不影响
@@ -326,7 +330,7 @@ class ProxyServer {
       }
     }
     connection &&
-      connection.write(JSON.stringify({ type: "removeProxyIpDone" }));
+      connection.write(JSON.stringify({ type: "removeProxyIpDone" }) + "\n");
   }
 
   createIpcServer(port) {
