@@ -7,6 +7,7 @@ module.exports = class BaseSend {
     this.isReady = false;
     this.options = null;
     this.platform = "";
+    this.receivedData = "";
   }
 
   async tryConnect() {
@@ -39,7 +40,7 @@ module.exports = class BaseSend {
       let { type } = obj;
       this.eventBus.emit(type, obj);
     } catch (e) {
-      console.log("接受到服务器的", data.toString());
+      console.log("接受到本地proxy服务器的消息出错", data.toString());
       console.log(e);
     }
   }
@@ -47,9 +48,21 @@ module.exports = class BaseSend {
   async handleConnected() {
     clearTimeout(this.connectErrorTimer);
     this.eventBus.emit("connectedReady");
-    this.client.on("data", (data) => {
-      this.handleReceiveData(data);
-    });
+    if (this.platform === "bili") {
+      this.client.on("data", (data) => {
+        this.receivedData += data.toString();
+        // 检查是否收到结束标记
+        if (this.receivedData.includes("\n")) {
+          const data = this.receivedData.split("\n")[0];
+          this.handleReceiveData(data);
+          this.receivedData = ""; // 重置
+        }
+      });
+    } else {
+      this.client.on("data", (data) => {
+        this.handleReceiveData(data);
+      });
+    }
   }
 
   async close() {
@@ -83,9 +96,9 @@ module.exports = class BaseSend {
     });
   }
 
- async removeProxyIp() {
+  async removeProxyIp() {
     if (!this.isNeedProxy) {
-      this.close()
+      this.close();
       return;
     }
     await new Promise((resolve) => {

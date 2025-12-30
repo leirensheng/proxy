@@ -134,7 +134,7 @@ class Client extends BaseSend {
       };
     } else {
       return {
-        errMsg: "未知错误" + comment,
+        errMsg: "未知错误" + comments,
         res: [],
       };
     }
