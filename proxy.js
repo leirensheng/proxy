@@ -4,8 +4,8 @@ let { getSign } = require("../damai/utils");
 const net = require("net");
 let connectionMap = {};
 let damaiMobileCookieAndToken = {};
-let jiuShiToken = "";
-let getAppToken = require("../F1/app/appGetToken");
+// let jiuShiToken = "";
+// let getAppToken = require("../F1/app/appGetTokenWithoutParams");
 class ProxyServer {
   constructor() {
     this.ips = new Set();
@@ -92,21 +92,21 @@ class ProxyServer {
     );
   }
 
-  async updateJiuShiToken() {
-    jiuShiToken = await getAppToken();
-    setTimeout(() => {
-      this.updateJiuShiToken();
-    }, 28 * 60000);
-  }
+  // async updateJiuShiToken() {
+  //   jiuShiToken = await getAppToken();
+  //   setTimeout(() => {
+  //     this.updateJiuShiToken();
+  //   }, 28 * 60000);
+  // }
 
-  async getJiushiToken({}, connection) {
-    if (!jiuShiToken) {
-      await this.updateJiuShiToken();
-    }
-    connection.write(
-      JSON.stringify({ jiuShiToken, type: "getJiushiTokenDone" }) + "\n"
-    );
-  }
+  // async getJiushiToken({}, connection) {
+  //   if (!jiuShiToken) {
+  //     await this.updateJiuShiToken();
+  //   }
+  //   connection.write(
+  //     JSON.stringify({ jiuShiToken, type: "getJiushiTokenDone" }) + "\n"
+  //   );
+  // }
 
   async initAgent(platform) {
     let ip = await getValidIp(this.ips, platform);
@@ -212,7 +212,7 @@ class ProxyServer {
   }
 
   async handleProxy(receiveData, connection) {
-    let { uniqueId, platform, params } = receiveData;
+    let { uniqueId, platform, params, headers } = receiveData;
     let options = connection.options;
 
     let agent = this.idToAgent[uniqueId];
@@ -226,6 +226,9 @@ class ProxyServer {
       let obj = JSON.parse(options.body);
       obj = { ...obj, ...params };
       options.body = JSON.stringify(obj);
+    }
+    if (headers) {
+      options.headers = { ...options.headers, ...headers };
     }
     // if (!agent) {
     //   agent = await this.getAgent({ options, uniqueId, platform }, connection);
@@ -251,7 +254,7 @@ class ProxyServer {
       }
     } catch (e) {
       if (!e.message.match(/fetch\sfailed|timeout/)) {
-        console.log("出错信息", e);
+        console.log("出错信息", e, options.url);
       }
       // console.log("超时了");
       // if (!e.message.includes("timeout")) {

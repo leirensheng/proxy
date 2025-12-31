@@ -80,7 +80,7 @@ module.exports = class BaseSend {
   //     });
   //   });
   // }
-  myProxy(params) {
+  myProxy(params, headers) {
     return new Promise((resolve) => {
       this.eventBus.once("proxyDone", ({ res }) => {
         resolve(res);
@@ -89,6 +89,7 @@ module.exports = class BaseSend {
         JSON.stringify({
           proxyData: true,
           params,
+          headers,
           platform: this.platform,
           uniqueId: this.uniqueId,
         })

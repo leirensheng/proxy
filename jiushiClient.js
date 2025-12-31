@@ -30,7 +30,7 @@ class Client extends BaseSend {
   }
 
   async getOptions() {
-    await this.getJiushiToken();
+    // await this.getJiushiToken();
 
     const url = `https://644898358795db000137473f.jussyun.com/cyy_gatewayapi/show/external/buyer/v5/show/${this.showId}/session/${this.sessionId}/seating/dynamic?lang=zh&terminalSrc=H5&ver=4.21.0`;
 
@@ -39,7 +39,7 @@ class Client extends BaseSend {
       Connection: "keep-alive",
       // "Content-Length": "1502",
       product: "pc",
-      "access-token": this.token,
+      // "access-token": this.token,
       "User-Agent":
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 MicroMessenger/7.0.20.1781(0x6700143B) NetType/WIFI MiniProgramEnv/Windows WindowsWechat/WMPF WindowsWechat(0x63090c11)XWEB/14315",
       "Content-Type": "application/json;charset=UTF-8",
@@ -98,12 +98,12 @@ class Client extends BaseSend {
     this.isReady = true;
   }
 
-  async send(params) {
+  async send(params, headers) {
     this.times++;
     if (!this.isReady) {
       return "";
     }
-    let res = await this.myProxy(params);
+    let res = await this.myProxy(params, headers);
 
     if (!res) {
       return {
@@ -119,7 +119,7 @@ class Client extends BaseSend {
       console.log("过期后更新===============>", getTime());
       this.isReady = false;
       await this.initAgent(true);
-      return this.send(params);
+      return this.send(params, headers);
     } else if (comments && comments.includes("成功")) {
       let arr = data
         .map((one) => ({
