@@ -112,11 +112,14 @@ class ProxyServer {
     let ip = await getValidIp(this.ips, platform);
     // console.log(ip);
     this.ips.add(ip);
-    let options = {
-      uri: "http://" + ip,
-      bodyTimeout: 2000,
-    };
-    let agent = new ProxyAgent(options);
+    let agent = {};
+    if (platform !== "bili") {
+      let options = {
+        uri: "http://" + ip,
+        bodyTimeout: 2000,
+      };
+      agent = new ProxyAgent(options);
+    }
     agent.ip = ip;
     // console.log("再用的ip有", this.ips.size);
     return agent;
@@ -181,6 +184,7 @@ class ProxyServer {
     connection.valueType = valueType;
     connection.options = options;
 
+    // {ip:"192.168.2.1",ids:new Set([id1,id2])}
     let agent; // agent是一个对象, 包含ip和ids
 
     if (this.canUseMap[platform].length) {
@@ -329,7 +333,11 @@ class ProxyServer {
       if (!agent.ids.size) {
         this.ips.delete(agent.ip);
         agent.ids = null;
-        agent.close();
+        try {
+          agent.close();
+        } catch (e) {
+          console.log(e);
+        }
       }
     }
     connection &&

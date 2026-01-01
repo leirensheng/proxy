@@ -2,6 +2,14 @@ let BaseSend = require("./baseSend");
 let { fetch, ProxyAgent, request } = require("undici");
 let { getSign, sleep, getTime } = require("../damai/utils");
 
+function getUUID() {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    return (c === "x" ? (Math.random() * 16) | 0 : "r&0x3" | "0x8").toString(
+      16
+    );
+  });
+}
+
 class Client extends BaseSend {
   constructor({ showId, sessionId, seatPlanId, index }) {
     super();
@@ -12,7 +20,6 @@ class Client extends BaseSend {
     this.sessionId = sessionId;
     this.isNeedProxy = true;
     this.seatPlanId = seatPlanId;
-    this.times = 0;
   }
 
   async getJiushiToken() {
@@ -76,34 +83,65 @@ class Client extends BaseSend {
       this.eventBus.once("connectedReady", resolve);
       this.tryConnect();
     });
-    await this.initAgent(true);
+    await this.initAgent();
   }
 
   async initAgent() {
-    let options = await this.getOptions();
-    let uniqueId =
-      this.show +
-      "_" +
-      this.sessionId +
-      "_" +
-      this.seatPlanId +
-      "_" +
-      this.index;
-    this.uniqueId = uniqueId;
+    // this.options = await this.getOptions();
+    // let uniqueId =
+    //   this.show +
+    //   "_" +
+    //   this.sessionId +
+    //   "_" +
+    //   this.seatPlanId +
+    //   "_" +
+    //   this.index;
+    this.uniqueId = getUUID();
 
-    this.options = options;
+    // this.options = options;
     if (this.isNeedProxy) {
-      this.ip = await this.getAgent();
+      let { agent, ip } = await this.getAgent();
+      this.agent = agent;
+      this.ip = ip;
     }
     this.isReady = true;
   }
 
-  async send(params, headers) {
-    this.times++;
+  async send(options) {
     if (!this.isReady) {
       return "";
     }
-    let res = await this.myProxy(params, headers);
+
+    try {
+      // console.log("fetch",agent.ip,uniqueId)
+      let p1 = fetch(options.url, {
+        ...options,
+        keepalive: true,
+        dispatcher: agent,
+      }).then((res) => {
+        if (valueType === "text") {
+          return res.text();
+        } else {
+          return res.json();
+        }
+      });
+      let p2 = sleep(1000);
+      res = await Promise.race([p1, p2]);
+      if (!res) {
+        throw new Error("timeout");
+      }
+    } catch (e) {
+      if (!e.message.match(/fetch\sfailed|timeout/)) {
+        console.log("出错信息", e, options.url);
+      }
+      // console.log("超时了");
+      // if (!e.message.includes("timeout")) {
+      // this.removeProxyIp({ uniqueId });
+      // }
+      // if (!res || e.message.includes("fetch failed")) {
+      // }
+    }
+    // let res = await this.myProxy(params, headers);
 
     if (!res) {
       return {

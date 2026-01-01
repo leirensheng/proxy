@@ -1,6 +1,7 @@
 let connectCheckServer = require("./ipcClient2");
 let { sleep } = require("./utils");
 let PubSub = require("./pubBus");
+const { ProxyAgent } = require("undici");
 module.exports = class BaseSend {
   constructor() {
     this.eventBus = new PubSub();
@@ -118,19 +119,38 @@ module.exports = class BaseSend {
     // await this.close()
   }
 
-  getAgent() {
-    return new Promise((resolve) => {
+  async getAgent() {
+    if (this.platform !== "bili") {
+      return new Promise((resolve) => {
+        this.eventBus.once("getAgentDone", ({ ip }) => resolve(ip));
+        this.client.write(
+          JSON.stringify({
+            uniqueId: this.uniqueId,
+            getAgent: true,
+            platform: this.platform,
+            valueType: this.valueType,
+            options: this.options,
+          })
+        );
+      });
+    }
+    let ip = await new Promise((resolve) => {
       this.eventBus.once("getAgentDone", ({ ip }) => resolve(ip));
       this.client.write(
         JSON.stringify({
           uniqueId: this.uniqueId,
           getAgent: true,
           platform: this.platform,
-          valueType: this.valueType,
-          options: this.options,
         })
       );
     });
+    let options = {
+      uri: "http://" + ip,
+      bodyTimeout: 2000,
+    };
+    let agent = new ProxyAgent(options);
+
+    return { agent, ip };
   }
 
   pauseProxy() {
