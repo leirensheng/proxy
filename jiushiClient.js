@@ -112,26 +112,25 @@ class Client extends BaseSend {
       return "";
     }
 
+    let res;
     try {
       // console.log("fetch",agent.ip,uniqueId)
       let p1 = fetch(options.url, {
         ...options,
         keepalive: true,
-        dispatcher: agent,
-      }).then((res) => {
-        if (valueType === "text") {
-          return res.text();
-        } else {
-          return res.json();
-        }
-      });
+        dispatcher: this.agent,
+      }).then((res) => res.json());
       let p2 = sleep(1000);
       res = await Promise.race([p1, p2]);
       if (!res) {
         throw new Error("timeout");
       }
     } catch (e) {
-      if (!e.message.match(/fetch\sfailed|timeout/)) {
+      if (
+        !e.message.match(
+          /fetch\sfailed|timeout| "<!DOCTYPE "... is not valid JSON/
+        )
+      ) {
         console.log("出错信息", e, options.url);
       }
       // console.log("超时了");
@@ -154,17 +153,29 @@ class Client extends BaseSend {
 
     if (comments && comments.includes("invalid")) {
       // 应该不会出现,因为server会自动的更新
-      console.log("过期后更新===============>", getTime());
-      this.isReady = false;
-      await this.initAgent(true);
-      return this.send(params, headers);
+      console.log(
+        options.url,
+        "不应该出现的, token过期后更新===============>",
+        getTime()
+      );
+
+      await sleep(100000);
+      // this.isReady = false;
+      // await this.initAgent(true);
+      // return this.send(params, headers);
     } else if (comments && comments.includes("成功")) {
-      let arr = data
-        .map((one) => ({
-          zoneConcreteId: one.zoneConcreteId,
-          saleStatus: one.seatPlanSeatBits?.[0].bitstr,
-        }))
-        .filter((one) => one.saleStatus);
+      let isApp = options.url.includes("644898358795db000137473f");
+      let arr = [];
+      if (isApp) {
+        arr = data
+          .map((one) => ({
+            zoneConcreteId: one.zoneConcreteId,
+            saleStatus: one.seatPlanSeatBits?.[0].bitstr,
+          }))
+          .filter((one) => one.saleStatus);
+      } else {
+        arr = data.filter((one) => one.saleStatus);
+      }
 
       return {
         res: arr,
