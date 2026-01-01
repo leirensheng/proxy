@@ -1,0 +1,12 @@
+/node_modules
+/data
+/userData/
+/checkData/
+/notCheckData/
+config.json
+calculate.json
+localConfig.json
+checkMap.json
+userInfoHasRemove.json
+/dynv6Data
+/autoWifi/daemon

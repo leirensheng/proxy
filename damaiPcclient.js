@@ -7,7 +7,7 @@ class Client extends BaseSend {
     this.valueType = "text";
     this.activityId = activityId;
     this.dataId = dataId;
-    this.isNeedProxy = true
+    this.isNeedProxy = true;
   }
 
   async init() {
@@ -59,7 +59,9 @@ class Client extends BaseSend {
       return "";
     }
     let res = await this.myProxy();
+    // console.log(res)
     if (!res) {
+      console.log("超时")
       return {
         errMsg: "超时",
         res: [],
@@ -77,17 +79,19 @@ class Client extends BaseSend {
       };
     } else if (res.includes("skuList")) {
       res = res.slice(1, -1);
-
       let {
+        itemBasicInfo: { itemTitle, sellingStartTime, t },
+
         perform: { skuList },
       } = JSON.parse(res);
       skuList.forEach((one) => {
         one.quantitySellAble = Number(one.salableQuantity);
       });
-
+      // pc的signkey没有用的
       return {
         errMsg: "",
         res: skuList,
+        signKey: t,
       };
     } else {
       console.log("未知错误", res);
