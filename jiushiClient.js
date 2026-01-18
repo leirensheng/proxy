@@ -1,11 +1,11 @@
 let BaseSend = require("./baseSend");
-let { fetch, ProxyAgent, request } = require("undici");
-let { getSign, sleep, getTime } = require("../damai/utils");
+let { fetch } = require("undici");
+let { sleep, getTime } = require("../damai/utils");
 
 function getUUID() {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
     return (c === "x" ? (Math.random() * 16) | 0 : "r&0x3" | "0x8").toString(
-      16
+      16,
     );
   });
 }
@@ -22,62 +22,6 @@ class Client extends BaseSend {
     this.seatPlanId = seatPlanId;
   }
 
-  async getJiushiToken() {
-    let token = await new Promise((resolve) => {
-      this.eventBus.once("getJiushiTokenDone", ({ jiuShiToken }) =>
-        resolve(jiuShiToken)
-      );
-      this.client.write(
-        JSON.stringify({
-          getJiushiToken: true,
-        })
-      );
-    });
-    this.token = token;
-  }
-
-  async getOptions() {
-    // await this.getJiushiToken();
-
-    const url = `https://644898358795db000137473f.jussyun.com/cyy_gatewayapi/show/external/buyer/v5/show/${this.showId}/session/${this.sessionId}/seating/dynamic?lang=zh&terminalSrc=H5&ver=4.21.0`;
-
-    const headers = {
-      Host: "644898358795db000137473f.jussyun.com",
-      Connection: "keep-alive",
-      // "Content-Length": "1502",
-      product: "pc",
-      // "access-token": this.token,
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 MicroMessenger/7.0.20.1781(0x6700143B) NetType/WIFI MiniProgramEnv/Windows WindowsWechat/WMPF WindowsWechat(0x63090c11)XWEB/14315",
-      "Content-Type": "application/json;charset=UTF-8",
-      Accept: "application/json, text/plain, */*",
-      "X-Requested-With": "XMLHttpRequest",
-      "terminal-src": "H5",
-      ver: "4.21.0",
-      "channel-Id": "",
-      Origin: "https://644898358795db000137473f.jussyun.com",
-      "Sec-Fetch-Site": "same-origin",
-      "Sec-Fetch-Mode": "cors",
-      "Sec-Fetch-Dest": "empty",
-
-      "Accept-Encoding": "gzip, deflate, br",
-      "Accept-Language": "zh-CN,zh;q=0.9",
-    };
-
-    const body = {
-      // zoneConcreteIds: this.zoneIds, //后面参数会动态传递
-      bizSeatPlanIds: this.seatPlanId,
-      displaySeatPlanIds: this.seatPlanId,
-      lang: "zh",
-    };
-    // let ua = randomUserAgent.getRandom()
-    return {
-      url,
-      headers,
-      body: JSON.stringify(body),
-      method: "POST",
-    };
-  }
   async init() {
     await new Promise((resolve) => {
       this.eventBus.once("connectedReady", resolve);
@@ -87,18 +31,7 @@ class Client extends BaseSend {
   }
 
   async initAgent() {
-    // this.options = await this.getOptions();
-    // let uniqueId =
-    //   this.show +
-    //   "_" +
-    //   this.sessionId +
-    //   "_" +
-    //   this.seatPlanId +
-    //   "_" +
-    //   this.index;
     this.uniqueId = getUUID();
-
-    // this.options = options;
     if (this.isNeedProxy) {
       let { agent, ip } = await this.getAgent();
       this.agent = agent;
@@ -128,19 +61,12 @@ class Client extends BaseSend {
     } catch (e) {
       if (
         !e.message.match(
-          /fetch\sfailed|timeout| "<!DOCTYPE "... is not valid JSON/
+          /fetch\sfailed|timeout| "<!DOCTYPE "... is not valid JSON|Unexpected/,
         )
       ) {
         console.log("出错信息", e, options.url);
       }
-      // console.log("超时了");
-      // if (!e.message.includes("timeout")) {
-      // this.removeProxyIp({ uniqueId });
-      // }
-      // if (!res || e.message.includes("fetch failed")) {
-      // }
     }
-    // let res = await this.myProxy(params, headers);
 
     if (!res) {
       return {
@@ -156,7 +82,7 @@ class Client extends BaseSend {
       console.log(
         options.url,
         "不应该出现的, token过期后更新===============>",
-        getTime()
+        getTime(),
       );
 
       await sleep(100000);

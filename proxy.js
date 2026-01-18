@@ -92,21 +92,6 @@ class ProxyServer {
     );
   }
 
-  // async updateJiuShiToken() {
-  //   jiuShiToken = await getAppToken();
-  //   setTimeout(() => {
-  //     this.updateJiuShiToken();
-  //   }, 28 * 60000);
-  // }
-
-  // async getJiushiToken({}, connection) {
-  //   if (!jiuShiToken) {
-  //     await this.updateJiuShiToken();
-  //   }
-  //   connection.write(
-  //     JSON.stringify({ jiuShiToken, type: "getJiushiTokenDone" }) + "\n"
-  //   );
-  // }
 
   async initAgent(platform) {
     let ip = await getValidIp(this.ips, platform);
@@ -142,8 +127,6 @@ class ProxyServer {
         await this.removeProxyIp(receiveData, connection);
       } else if (receiveData.getMobileCookieAndToken) {
         await this.getMobileCookieAndToken(receiveData, connection);
-      } else if (receiveData.getJiushiToken) {
-        await this.getJiushiToken(receiveData, connection);
       }
     } catch (e) {
       console.log(e);
@@ -336,7 +319,7 @@ class ProxyServer {
         try {
           agent.close();
         } catch (e) {
-          console.log(e);
+          // console.log(e);
         }
       }
     }

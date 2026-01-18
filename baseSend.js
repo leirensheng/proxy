@@ -49,7 +49,7 @@ module.exports = class BaseSend {
   async handleConnected() {
     clearTimeout(this.connectErrorTimer);
     this.eventBus.emit("connectedReady");
-    if (this.platform === "bili") {
+    if (["bili", "damai"].includes(this.platform)) {
       this.client.on("data", (data) => {
         this.receivedData += data.toString();
         // 检查是否收到结束标记
