@@ -1,4 +1,5 @@
 let BaseSend = require("./baseSend");
+const { curly } = require("node-libcurl");
 class Client extends BaseSend {
   constructor(activityId, dataId, index) {
     super();
@@ -49,6 +50,17 @@ class Client extends BaseSend {
       body: null,
       method: "GET",
     };
+    const httpHeader = Object.entries(headers).map(
+      ([key, value]) => `${key}: ${value}`,
+    );
+    options = {
+      url,
+      httpHeader,
+      sslVerifyPeer: false, // 👈 关键：跳过证书验证
+      sslVerifyHost: false, // 👈 同时跳过主机名验证
+      timeout: 1, // 1秒超时
+      connectTimeout: 800,
+    };
     this.options = options;
     this.ip = await this.getAgent();
     this.isReady = true;
@@ -58,15 +70,22 @@ class Client extends BaseSend {
     if (!this.isReady) {
       return "";
     }
-    let res = await this.myProxy();
-    // console.log(res)
-    if (!res) {
-      console.log("超时")
+
+    let res;
+    try {
+      let { statusCode, data } = await curly(options.url, {
+        ...this.options,
+        proxy: this.ip,
+      });
+      res = data;
+    } catch (e) {
       return {
         errMsg: "超时",
         res: [],
       };
-    } else if (
+    }
+
+    if (
       res.includes("window") ||
       res.includes("小二很忙") ||
       res.includes("upstream server") |
