@@ -46,13 +46,7 @@ class Client extends BaseSend {
       return "";
     }
     const url = options.url;
-    const method = (options.method || "GET").toUpperCase();
     const headers = options.headers || {};
-    const body = options.body
-      ? typeof options.body === "string"
-        ? options.body
-        : JSON.stringify(options.body)
-      : undefined;
 
     // 构造 httpHeader 数组（curly 要求）
     const httpHeader = Object.entries(headers).map(
@@ -67,31 +61,19 @@ class Client extends BaseSend {
         httpHeader,
         sslVerifyPeer: false, // 👈 关键：跳过证书验证
         sslVerifyHost: false, // 👈 同时跳过主机名验证
-        timeout: 1000, // 1秒超时（毫秒）
+        timeout: 1, // 1秒超时
         connectTimeout: 800,
+        proxy: this.ip,
+        post: true,
+        postFields: options.body,
       };
 
-      curlOptions.proxy = this.ip;
-
-      // 设置方法和 body
-      if (method === "POST") {
-        curlOptions.post = true;
-        if (body) curlOptions.postFields = body;
-      }
-
-      // 发起请求（带 1 秒超时）
-      let p1 = sleep(1000);
-      let p2 = curly(url, curlOptions);
-      const res = await Promise.race([p1, p2]);
-      if (res) {
-        let { statusCode, data } = res;
-        if (statusCode === 200) {
-          resData = data;
-        } else {
-          throw new Error(`请求失败，状态码: ${statusCode}`);
-        }
+      const res = await curly(url, curlOptions);
+      let { statusCode, data } = res;
+      if (statusCode === 200) {
+        resData = data;
       } else {
-        throw new Error("timeout");
+        throw new Error(`请求失败，状态码: ${statusCode}`);
       }
     } catch (e) {
       // 捕获 curly 抛出的错误（如网络错误、超时等）

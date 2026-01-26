@@ -1,7 +1,7 @@
 let BaseSend = require("./baseSend");
 let { fetch, ProxyAgent, request } = require("undici");
-let { getSign, sleep } = require("../damai/utils");
-// const randomUserAgent = require("random-useragent");
+let { getSign, sleep, getTime } = require("../damai/utils");
+const { curly } = require("node-libcurl");
 
 class Client extends BaseSend {
   constructor(activityId, dataId, index, skuIdToTypeMap, port, isWx) {
@@ -12,7 +12,7 @@ class Client extends BaseSend {
     this.activityId = activityId;
     this.skuIdToTypeMap = skuIdToTypeMap;
     this.dataId = dataId;
-    this.isNeedProxy = false;
+    this.isNeedProxy = true;
     this.isWx = isWx;
     this.isXuni = [4822].includes(Number(port));
     this.times = 0;
@@ -21,14 +21,14 @@ class Client extends BaseSend {
   async getMobileCookieAndToken(isRefresh) {
     let { cookie, token } = await new Promise((resolve) => {
       this.eventBus.once("getMobileCookieAndTokenDone", ({ token, cookie }) =>
-        resolve({ token, cookie })
+        resolve({ token, cookie }),
       );
       this.client.write(
         JSON.stringify({
           isRefresh,
           activityId: this.activityId,
           getMobileCookieAndToken: true,
-        })
+        }),
       );
     });
 
@@ -42,34 +42,41 @@ class Client extends BaseSend {
     // damai_app
     let data = {
       itemId: this.activityId,
-      platform: "8",
-      comboChannel: "2",
+      platform: "282",
+      comboChannel: "4",
       dmChannel: this.isWx ? "damai@weixin_gzh" : "damai@damaih5_h5",
     };
     let t = Date.now();
     let sign = getSign(data, t, this.token);
+    // let ua = randomUserAgent.getRandom()
+    let url = `https://mtop.damai.cn/h5/mtop.damai.item.detail.getdetail/1.0/?jsv=2.7.5&appKey=12574478&t=${t}&sign=${sign}&api=mtop.damai.item.detail.getdetail&v=1.0&H5Request=true&type=json&timeout=10000&dataType=json&valueType=string&forceAntiCreep=true&AntiCreep=true&data=${encodeURIComponent(
+      JSON.stringify(data),
+    )}`;
+    let headers = {
+      cookie: this.cookie,
+      accept: "application/json",
+      "content-type": "application/x-www-form-urlencoded",
+      // "accept-language": "zh-CN,zh;q=0.9",
+      // priority: "u=1, i",
+      "sec-ch-ua": `"Google Chrome";v="143", "Chromium";v="143", "Not A(Brand";v="24"`,
+      "sec-ch-ua-mobile": "?0",
+      "sec-ch-ua-platform": '"Windows"',
+      "User-Agent":
+        "Mozilla/5.0 (Linux; Android 15; MAG-AN00 Build/HONORMAG-AN00; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/134.0.6998.136 Mobile Safari/537.36 XWEB/1340099 MMWEBSDK/20250201 MMWEBID/929 MicroMessenger/8.0.58.2841(0x28003A3C) WeChat/arm64 Weixin NetType/WIFI Language/zh_CN ABI/arm64",
+      // "Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1",
+    };
+
+    const httpHeader = Object.entries(headers).map(
+      ([key, value]) => `${key}: ${value}`,
+    );
     return {
-      url: `https://mtop.damai.cn/h5/mtop.damai.item.detail.getdetail/1.0/?jsv=2.7.2&appKey=12574478&t=${t}&sign=${sign}&api=mtop.damai.item.detail.getdetail&v=1.0&H5Request=true&type=json&timeout=10000&dataType=json&valueType=string&forceAntiCreep=true&AntiCreep=true&useH5=true&data=${encodeURIComponent(
-        JSON.stringify(data)
-      )}`,
-      headers: {
-        cookie: this.cookie,
-        accept: "application/json",
-        "accept-language": "zh-CN,zh;q=0.9",
-        priority: "u=1, i",
-        "sec-fetch-dest": "empty",
-        "sec-fetch-mode": "cors",
-        "sec-fetch-site": "same-site",
-        // "user-agent": this.isWx
-        //   ? "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36 NetType/WIFI MicroMessenger/7.0.20.1781(0x6700143B) WindowsWechat(0x6305002e)"
-        //   : randomUserAgent.getRandom(),
-      },
-      referrer: "https://m.damai.cn/",
-      referrerPolicy: "strict-origin-when-cross-origin",
-      body: null,
-      method: "GET",
-      mode: "cors",
-      credentials: "include",
+      url,
+      httpHeader,
+      sslVerifyPeer: false, // 👈 关键：跳过证书验证
+      sslVerifyHost: false, // 👈 同时跳过主机名验证
+      timeout: 1, // 1秒超时
+      connectTimeout: 800,
+      // proxy: this.ip,
     };
   }
   async init() {
@@ -78,17 +85,17 @@ class Client extends BaseSend {
       this.tryConnect();
     });
     await this.initAgent();
-    this.updateOptions();
+    // this.updateOptions();
   }
-  updateOptions() {
-    setInterval(() => {
-      this.initAgent(true);
-    }, 60000 * (this.index + 1));
-  }
+  // updateOptions() {
+  //   setInterval(() => {
+  //     this.initAgent(true);
+  //   }, 15000 * (this.index + 1));
+  // }
 
   async initAgent(isRefresh) {
     let options = await this.getOptions(isRefresh);
-    console.log("更新options完成");
+    // console.log("更新options完成");
     let uniqueId = this.activityId + "_" + this.dataId + "_" + this.index;
     this.uniqueId = uniqueId;
 
@@ -106,32 +113,31 @@ class Client extends BaseSend {
       return "";
     }
     let res;
-    if (this.isNeedProxy) {
-      res = await this.myProxy();
-    } else {
-      try {
-        let p1 = fetch(this.options.url, {
-          ...this.options,
-          keepalive: true,
-        }).then((res) => res.json());
-        let p2 = sleep(2000);
-        res = await Promise.race([p1, p2]);
-      } catch (e) {
-        console.log(e);
-      }
-    }
-
-    if (!res) {
+    try {
+      let { statusCode, data } = await curly(options.url, {
+        ...this.options,
+        ip: this.ip,
+      });
+      res = data;
+    } catch (e) {
       return {
         errMsg: "超时",
         res: [],
       };
     }
 
+
+
     let {
-      data: { legacy },
+      data: { legacy, buyButton },
       ret,
     } = res;
+
+    // console.log("11111,"+buyButton)
+    // this.isReady = false;
+    // await this.initAgent(true);
+
+    console.log(buyButton)
     if (ret && ret.length && ret.some((one) => one.match(/令牌过期/))) {
       console.log("过期后更新");
       this.isReady = false;
@@ -141,7 +147,7 @@ class Client extends BaseSend {
       ret &&
       ret.length &&
       ret.some((one) =>
-        one.match(/(挤爆)|(令牌过期)|(小二很忙)|(网络系统异常)|(令牌为空)/)
+        one.match(/(挤爆)|(令牌过期)|(小二很忙)|(网络系统异常)|(令牌为空)/),
       )
     ) {
       console.log(ret);
@@ -155,21 +161,27 @@ class Client extends BaseSend {
         errFromPage: "12未知错误" + JSON.stringify(ret),
       };
     } else {
-      let {
-        detailViewComponentMap: {
-          item: {
-            item: { buyBtnText, performBases, isSoldOutAndNoUnpaid },
-          },
-        },
-      } = JSON.parse(legacy);
-
       let isSellout;
-      if (typeof isSoldOutAndNoUnpaid !== "undefined") {
-        isSellout = isSoldOutAndNoUnpaid;
+      if (buyButton) {
+        isSellout = !buyButton.text.includes("立即");
       } else {
+        let {
+          detailViewComponentMap: {
+            item: {
+              item: { buyBtnText, performBases, isSoldOutAndNoUnpaid },
+            },
+          },
+        } = JSON.parse(legacy);
+
+        // if (typeof isSoldOutAndNoUnpaid !== "undefined") {
+        //   isSellout = isSoldOutAndNoUnpaid;
+        // } else {
+        // }
+        // console.log(buyBtnText)
         isSellout = !buyBtnText.includes("立即");
       }
 
+      // console.log(1111,buyBtnText)
       let arr;
 
       arr = Object.keys(this.skuIdToTypeMap).map((id) => ({

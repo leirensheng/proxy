@@ -17,7 +17,7 @@ let getValidIp = async (ips, platform) => {
       `http://mticket.ddns.net:4000/getValidIp?platform=` + platform,
       {
         timeout: 60000,
-      }
+      },
     );
     let ip = data.data;
     if (ips.has(ip)) {
@@ -49,7 +49,7 @@ let getTime = (date) => {
   let millisecond = date.getMilliseconds();
 
   return `${formatNumber(hour)}:${formatNumber(minute)}:${formatNumber(
-    second
+    second,
   )}.${millisecond}`;
 };
 
@@ -66,8 +66,8 @@ let waitUntilSuccess = (fn, times0 = 20, sleepTime = 5000) => {
           await sleep(sleepTime);
         }
         times--;
-        console.log(e);
-        console.log("出错重试");
+        // console.log(e);
+        console.log("出错重试=>" + e.message);
       }
     }
     throw new Error("出错了");
@@ -93,7 +93,7 @@ let getDouyaIp = async (ips) => {
   isGettingIp = true;
   let getIp = async () => {
     let { data } = await axios(
-      `https://api.douyadaili.com/proxy/?service=GetUnl&authkey=P61D1Myddt0vsMgYhVgN&num=${1}&format=json&distinct=${isDistinct}&detail=1&portlen=4`
+      `https://api.douyadaili.com/proxy/?service=GetUnl&authkey=P61D1Myddt0vsMgYhVgN&num=${1}&format=json&distinct=${isDistinct}&detail=1&portlen=4`,
     );
     if (data.msg.match(/今日最大|资源不足/)) {
       isDistinct = 0;

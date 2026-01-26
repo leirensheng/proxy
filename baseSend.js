@@ -93,7 +93,7 @@ module.exports = class BaseSend {
           headers,
           platform: this.platform,
           uniqueId: this.uniqueId,
-        })
+        }),
       );
     });
   }
@@ -112,7 +112,7 @@ module.exports = class BaseSend {
           removeProxyIp: true,
           platform: this.platform,
           uniqueId: this.uniqueId,
-        })
+        }),
       );
     });
     // await sleep(1000)
@@ -130,7 +130,7 @@ module.exports = class BaseSend {
             platform: this.platform,
             valueType: this.valueType,
             options: this.options,
-          })
+          }),
         );
       });
     }
@@ -141,16 +141,10 @@ module.exports = class BaseSend {
           uniqueId: this.uniqueId,
           getAgent: true,
           platform: this.platform,
-        })
+        }),
       );
     });
-    let options = {
-      uri: "http://" + ip,
-      bodyTimeout: 2000,
-    };
-    let agent = new ProxyAgent(options);
-
-    return { agent, ip };
+    return ip;
   }
 
   pauseProxy() {
@@ -161,7 +155,7 @@ module.exports = class BaseSend {
           uniqueId: this.uniqueId,
           pauseProxy: true,
           platform: this.platform,
-        })
+        }),
       );
     });
   }
