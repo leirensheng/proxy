@@ -56,8 +56,6 @@ class Client extends BaseSend {
       cookie: this.cookie,
       accept: "application/json",
       "content-type": "application/x-www-form-urlencoded",
-      // "accept-language": "zh-CN,zh;q=0.9",
-      // priority: "u=1, i",
       "sec-ch-ua": `"Google Chrome";v="143", "Chromium";v="143", "Not A(Brand";v="24"`,
       "sec-ch-ua-mobile": "?0",
       "sec-ch-ua-platform": '"Windows"',
@@ -114,9 +112,9 @@ class Client extends BaseSend {
     }
     let res;
     try {
-      let { statusCode, data } = await curly(options.url, {
+      let { statusCode, data } = await curly(this.options.url, {
         ...this.options,
-        ip: this.ip,
+        proxy: this.ip,
       });
       res = data;
     } catch (e) {
@@ -125,8 +123,6 @@ class Client extends BaseSend {
         res: [],
       };
     }
-
-
 
     let {
       data: { legacy, buyButton },
@@ -137,7 +133,6 @@ class Client extends BaseSend {
     // this.isReady = false;
     // await this.initAgent(true);
 
-    console.log(buyButton)
     if (ret && ret.length && ret.some((one) => one.match(/令牌过期/))) {
       console.log("过期后更新");
       this.isReady = false;

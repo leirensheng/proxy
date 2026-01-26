@@ -1,5 +1,5 @@
 const { sleep, getValidIp, getTime } = require("./utils");
-let { fetch, ProxyAgent } = require("undici");
+let { fetch } = require("undici");
 let { getSign } = require("../damai/utils");
 const net = require("net");
 let connectionMap = {};
@@ -24,7 +24,7 @@ class ProxyServer {
         JSON.stringify({
           ...damaiMobileCookieAndToken[activityId],
           type: "getMobileCookieAndTokenDone",
-        }) + "\n"
+        }) + "\n",
       );
       return;
     }
@@ -42,7 +42,7 @@ class ProxyServer {
 
       let res = await fetch(
         `https://mtop.damai.cn/h5/mtop.alibaba.damai.detail.getdetail/1.0/?jsv=2.7.5&appKey=12574478&t=${t}&sign=${sign}&api=mtop.alibaba.damai.detail.getdetail&v=1.2&H5Request=true&type=originaljson&timeout=10000&dataType=json&valueType=original&forceAntiCreep=true&AntiCreep=true&useH5=true&data=${encodeURIComponent(
-          JSON.stringify(data)
+          JSON.stringify(data),
         )}`,
         {
           headers: {
@@ -66,7 +66,7 @@ class ProxyServer {
           },
           body: null,
           method: "GET",
-        }
+        },
       );
 
       let cookie = res.headers.get("Set-Cookie");
@@ -88,24 +88,18 @@ class ProxyServer {
 
     connection.write(
       JSON.stringify({ token, cookie, type: "getMobileCookieAndTokenDone" }) +
-        "\n"
+        "\n",
     );
   }
 
-
+  // 不再使用 new ProxyAgent, 因为不在server中发请求
   async initAgent(platform) {
     let ip = await getValidIp(this.ips, platform);
     // console.log(ip);
     this.ips.add(ip);
-    let agent = {};
-    if (platform !== "bili") {
-      let options = {
-        uri: "http://" + ip,
-        bodyTimeout: 2000,
-      };
-      agent = new ProxyAgent(options);
-    }
-    agent.ip = ip;
+    let agent = {
+      ip,
+    };
     // console.log("再用的ip有", this.ips.size);
     return agent;
   }
@@ -117,8 +111,6 @@ class ProxyServer {
         await this.getAgent(receiveData, connection);
       } else if (receiveData.refreshOption) {
         await this.refreshOption(receiveData, connection);
-      } else if (receiveData.proxyData) {
-        await this.handleProxy(receiveData, connection);
       } else if (receiveData.stopRequest) {
         await this.stopRequest(receiveData, connection);
       } else if (receiveData.pauseProxy) {
@@ -193,76 +185,9 @@ class ProxyServer {
 
     connection &&
       connection.write(
-        JSON.stringify({ type: "getAgentDone", ip: agent.ip }) + "\n"
+        JSON.stringify({ type: "getAgentDone", ip: agent.ip }) + "\n",
       );
     return agent;
-  }
-
-  async handleProxy(receiveData, connection) {
-    let { uniqueId, platform, params, headers } = receiveData;
-    let options = connection.options;
-
-    let agent = this.idToAgent[uniqueId];
-    let valueType = connection.valueType;
-
-    if (!agent) {
-      console.log(uniqueId + "竟然找不到agent", getTime());
-    }
-
-    if (params) {
-      let obj = JSON.parse(options.body);
-      obj = { ...obj, ...params };
-      options.body = JSON.stringify(obj);
-    }
-    if (headers) {
-      options.headers = { ...options.headers, ...headers };
-    }
-    // if (!agent) {
-    //   agent = await this.getAgent({ options, uniqueId, platform }, connection);
-    // }
-    let res;
-    try {
-      // console.log("fetch",agent.ip,uniqueId)
-      let p1 = fetch(options.url, {
-        ...options,
-        keepalive: true,
-        dispatcher: agent,
-      }).then((res) => {
-        if (valueType === "text") {
-          return res.text();
-        } else {
-          return res.json();
-        }
-      });
-      let p2 = sleep(1000);
-      res = await Promise.race([p1, p2]);
-      if (!res) {
-        throw new Error("timeout");
-      }
-    } catch (e) {
-      if (!e.message.match(/fetch\sfailed|timeout/)) {
-        console.log("出错信息", e, options.url);
-      }
-      // console.log("超时了");
-      // if (!e.message.includes("timeout")) {
-      // this.removeProxyIp({ uniqueId });
-      // }
-      // if (!res || e.message.includes("fetch failed")) {
-      // }
-    }
-    // console.log("相应",res)
-    if (res && platform === "xingqiu") {
-      try {
-        let {
-          data: { seatPlans },
-        } = res;
-        res = seatPlans.filter((one) => Number(one.canBuyCount));
-      } catch (e) {
-        console.log(e);
-      }
-    }
-    // console.log("发送给客户端", res);
-    connection.write(JSON.stringify({ res, type: "proxyDone" }) + "\n");
   }
 
   //只是去掉agent,没有清理options 没有用
@@ -316,11 +241,6 @@ class ProxyServer {
       if (!agent.ids.size) {
         this.ips.delete(agent.ip);
         agent.ids = null;
-        try {
-          agent.close();
-        } catch (e) {
-          // console.log(e);
-        }
       }
     }
     connection &&
