@@ -70,7 +70,7 @@ class ProxyServer {
       );
 
       let cookie = res.headers.get("Set-Cookie");
-      console.log(1111111111, cookie);
+      // console.log(1111111111, cookie);
       let v1 = cookie.match(/_m_h5_tk_enc=([^;]{2,}?);/)[1];
       let v2 = cookie.match(/_m_h5_tk=([^;]{2,}?);/)[1];
       cookie = `_m_h5_tk_enc=${v1};_m_h5_tk=${v2};`;
@@ -100,7 +100,7 @@ class ProxyServer {
     let agent = {
       ip,
     };
-    // console.log("再用的ip有", this.ips.size);
+    // console.log("proxyServer再用的ip有", this.ips.size);
     return agent;
   }
 
@@ -164,7 +164,7 @@ class ProxyServer {
 
     if (this.canUseMap[platform].length) {
       agent = this.canUseMap[platform].pop();
-      // console.log("从可用的里面获取", agent.ip);
+      // console.log(`从可用的里面获取`, agent.ip);
     } else {
       // console.log("重新获取agent", uniqueId);
       agent = await this.initAgent(platform);

@@ -29,31 +29,27 @@ class Client extends BaseSend {
 
     let uniqueId = this.activityId + "_" + this.dataId + "_" + this.index;
     this.uniqueId = uniqueId;
-    let options = {
-      url,
-      headers: {
-        accept: "*/*",
-        "accept-language": "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6",
-        "sec-ch-ua":
-          '"Chromium";v="118", "Microsoft Edge";v="118", "Not=A?Brand";v="99"',
-        "sec-ch-ua-mobile": "?0",
-        "sec-ch-ua-platform": '"Windows"',
-        "sec-fetch-dest": "script",
-        "sec-fetch-mode": "no-cors",
-        "sec-fetch-site": "same-origin",
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Geciko) Chrome/118.0.0.0 Safari/537.36 Edg/118.0.2088.46",
+    let headers = {
+      accept: "*/*",
+      "accept-language": "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6",
+      "sec-ch-ua":
+        '"Chromium";v="118", "Microsoft Edge";v="118", "Not=A?Brand";v="99"',
+      "sec-ch-ua-mobile": "?0",
+      "sec-ch-ua-platform": '"Windows"',
+      "sec-fetch-dest": "script",
+      "sec-fetch-mode": "no-cors",
+      "sec-fetch-site": "same-origin",
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Geciko) Chrome/118.0.0.0 Safari/537.36 Edg/118.0.2088.46",
 
-        Referer: `https://detail.damai.cn/item.htm?&id=${this.activityId}`,
-        "Referrer-Policy": "strict-origin-when-cross-origin",
-      },
-      body: null,
-      method: "GET",
+      Referer: `https://detail.damai.cn/item.htm?&id=${this.activityId}`,
+      "Referrer-Policy": "strict-origin-when-cross-origin",
     };
+
     const httpHeader = Object.entries(headers).map(
       ([key, value]) => `${key}: ${value}`,
     );
-    options = {
+    let options = {
       url,
       httpHeader,
       sslVerifyPeer: false, // 👈 关键：跳过证书验证
@@ -73,12 +69,13 @@ class Client extends BaseSend {
 
     let res;
     try {
-      let { statusCode, data } = await curly(options.url, {
+      let { statusCode, data } = await curly(this.options.url, {
         ...this.options,
         proxy: this.ip,
       });
       res = data;
     } catch (e) {
+      // console.log(e)
       return {
         errMsg: "超时",
         res: [],
@@ -91,7 +88,7 @@ class Client extends BaseSend {
       res.includes("upstream server") |
         res.includes("https://bixi.alicdn.com/punish")
     ) {
-      console.log(res);
+      // console.log(res);
       return {
         errMsg: "请求频繁",
         res: [],
