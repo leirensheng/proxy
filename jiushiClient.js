@@ -4,6 +4,7 @@ const { curly } = require("node-libcurl");
 const { spawn } = require("child_process");
 const fetch = require("node-fetch");
 const https = require("https");
+const { request, ProxyAgent } = require("undici");
 function getUUID() {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
     return (c === "x" ? (Math.random() * 16) | 0 : "r&0x3" | "0x8").toString(
@@ -22,7 +23,7 @@ class Client extends BaseSend {
     this.sessionId = sessionId;
     this.isNeedProxy = true;
     this.seatPlanId = seatPlanId;
-    this.send = this.sendByFetch;
+    this.send = this.sendByUndici;
   }
 
   async init() {
@@ -37,6 +38,13 @@ class Client extends BaseSend {
     this.uniqueId = getUUID();
     if (this.isNeedProxy) {
       this.ip = await this.getAgent();
+      if (this.send === this.sendByUndici) {
+        let options = {
+          uri: "http://" + this.ip,
+          bodyTimeout: 2000,
+        };
+        this.agent = new ProxyAgent(options);
+      }
     }
     this.isReady = true;
   }
@@ -158,6 +166,104 @@ class Client extends BaseSend {
     }
   }
 
+  async sendByUndici(options) {
+    if (!this.isReady) {
+      return "";
+    }
+
+    let res;
+    try {
+      // 使用 undici.request 替代 fetch
+      let p1 = request(options.url, {
+        ...options, // 这里的 options 包含 method, headers, body 等
+        dispatcher: this.agent, // 保留你的 agent 配置
+      }).then(async ({ statusCode, body }) => {
+        // 解构 request 的返回值
+        // 检查状态码，非 2xx 状态码可能也需要特殊处理
+        if (statusCode < 200 || statusCode >= 300) {
+          // 可以根据需要抛出错误或返回特定结构
+          // 这里我们先尝试读取 body 作为错误信息的一部分
+          const rawBody = await body.text();
+          throw new Error(
+            `Request failed with status code: ${statusCode}. Body: ${rawBody.substring(0, 100)}...`,
+          );
+        }
+
+        // 从 body 流中读取文本并解析为 JSON
+        const text = await body.text();
+        try {
+          return JSON.parse(text);
+        } catch (parseError) {
+          // 如果 JSON 解析失败，抛出错误
+          throw new Error(
+            `Response is not valid JSON. Status: ${statusCode}, Body: ${text.substring(0, 100)}...`,
+          );
+        }
+      });
+
+      let p2 = sleep(1000);
+      res = await Promise.race([p1, p2]);
+
+      if (!res) {
+        throw new Error("timeout");
+      }
+    } catch (e) {
+      // console.log(e);
+      if (
+        !e.message.match(
+          /Request failed with status code|403|timeout|Response is not valid JSON| "<!DOCTYPE "... is not valid JSON|Unexpected/, // 更新了匹配正则，包含了 request 可能的错误信息
+        )
+      ) {
+        console.log("出错信息", e, options.url);
+      }
+    }
+
+    if (!res) {
+      return {
+        errMsg: "超时",
+        res: [],
+      };
+    }
+
+    // 假设 res 现在是解析后的 JSON 对象
+    let { data, comments } = res;
+    if (comments && comments.includes("invalid")) {
+      // 应该不会出现,因为server会自动的更新
+      console.log(
+        options.url,
+        "不应该出现的, token过期后更新===============>",
+        getTime(),
+      );
+
+      await sleep(100000);
+      // this.isReady = false;
+      // await this.initAgent(true);
+      // return this.send(params, headers);
+    } else if (comments && comments.includes("成功")) {
+      let isApp = options.url.includes("644898358795db000137473f");
+      let arr = [];
+      if (isApp) {
+        arr = data
+          .map((one) => ({
+            zoneConcreteId: one.zoneConcreteId,
+            saleStatus: one.seatPlanSeatBits?.[0].bitstr,
+          }))
+          .filter((one) => one.saleStatus);
+      } else {
+        arr = data.filter((one) => one.saleStatus);
+      }
+
+      return {
+        res: arr,
+        errMsg: "",
+      };
+    } else {
+      return {
+        errMsg: "未知错误" + comments,
+        res: [],
+      };
+    }
+  }
   async sendByFetch(options) {
     if (!this.isReady) {
       return "";
